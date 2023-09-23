@@ -1,0 +1,85 @@
+---
+Working as of 2022.09.18
+Added manually to
+https://grafana.openlibra.space/alerting/notifications/templates/discord.default/edit?alertmanager=grafana
+
+Template name: discord.default
+Content:
+
+{{ define "__discord_alert_list" }}
+{{ range . }}`{{ .Annotations.my_value }}` <= `{{ slice .Labels.job 0 8 }}` ({{ slice .Labels.instance 0 8 }}...) <@{{ .Labels.ol_discord_id }}>
+{{ end }}{{ end }}
+
+{{ define "discord.default.message" }}
+**{{ .CommonLabels.alertname }}**
+{{ if gt (len .Alerts.Firing) 0 }}:warning: Firing{{ template "__discord_alert_list" .Alerts.Firing }}{{ end }}
+{{ if gt (len .Alerts.Resolved) 0 }}:white_check_mark: Resolved{{ template "__discord_alert_list" .Alerts.Resolved }}{{ end }}
+{{ end }}
+
+---
+https://grafana.openlibra.space/alerting/notifications/receivers/discord-0l-validator-alerts/edit?alertmanager=grafana
+
+Webhook: https://discord.com/api/webhooks/1011310689576558728/xxxxxxx
+Message content: {{ template "discord.default.message" .}}
+
+possible to use Discord webhook +/slack
+https://community.grafana.com/t/configure-discord-alert-template/58365/2
+> However: the Slack notifier offers a field for both the embed title and body, and Discord webhooks are compatible with Slack 23 if you add a “/slack” to the end of the URL.
+
+
+---
+
+Example alert:
+
+https://grafana.openlibra.space/alerting/vF92h5GVk/edit?returnTo=%2Falerting%2Flist
+
+A: rate(diem_committed_proposals_in_window{ol_discord_id=~".+", ol_ignore=""}[1h])*60
+B: Reduce: Last (A) strict
+C: MAth: $B == 0
+
+Alert on: C
+
+my_value: {{ if $values.B }}{{ printf "%.1f" $values.B.Value }}{{ end }}
+
+---
+
+notes
+We need to limit message size to work with Discord
+It is better to use reduce and math instead of classical condition to evaluate alerts
+
+---
+
+{{ define "discord.default.values" }}
+
+{{ range $values }}
++ val: {{.labels}}
+{{ end }}
+
+{{ end }}
+
+{{ define "__discord_alert_list" }}
+{{ range . }}
+**{{ .Labels.alertname }}**
+
+{{ .Annotations.description }}
+
+{{/*Labels:*/}}
+{{/*{{ range .Labels.SortedPairs }} * {{ .Name }} = {{ .Value }}*/}}
+{{/*{{ end }}*/}}
+{{/*Annotations:*/}}
+{{/*{{ range .Annotations.SortedPairs }} * {{ .Name }} = {{ .Value }}*/}}
+{{/*{{ end }}*/}}
+{{ if gt (len .PanelURL) 0 }}Panel: {{ .PanelURL }}{{ end }}
+{{ if gt (len .DashboardURL) 0 }}Dashboard: {{ .DashboardURL }}{{ end }}
+---
+{{ end }}
+{{ end }}
+
+
+{{ define "discord.default.message" }}
+
+{{ if gt (len .Alerts.Firing) 0 }}**Firing**{{ template "__discord_alert_list" .Alerts.Firing }}{{ end }}
+{{ if gt (len .Alerts.Resolved) 0 }}**Resolved**{{ template "__discord_alert_list" .Alerts.Resolved }}{{ end }}
+
+{{ end }}
+

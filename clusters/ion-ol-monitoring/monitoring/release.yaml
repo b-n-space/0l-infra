@@ -1,0 +1,645 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: kube-prometheus-stack
+spec:
+  interval: 5m
+  chart:
+    spec:
+      version: "47.x"
+      chart: kube-prometheus-stack
+      sourceRef:
+        kind: HelmRepository
+        name: prometheus-community
+      interval: 60m
+  install:
+    crds: Create
+  upgrade:
+    force: true
+    crds: CreateReplace
+  # https://github.com/prometheus-community/helm-charts/blob/main/charts/kube-prometheus-stack/values.yaml
+  values:
+    defaultRules:
+      create: false
+
+    # todo: find how to add as datasource and enable incoming Grafana alerts
+    alertmanager:
+      enabled: true
+
+    grafana:
+      enabled: true
+
+      persistence:
+        enabled: true
+        existingClaim: kube-prometheus-stack-grafana
+
+      ingress:
+        enabled: true
+        annotations:
+          kubernetes.io/ingress.class: public
+          cert-manager.io/cluster-issuer: "letsencrypt-production"
+        hosts:
+          - grafana.openlibra.space
+        tls:
+          - secretName: grafana-general-tls
+            hosts:
+              - grafana.openlibra.space
+
+      'grafana.ini':
+        server:
+          root_url: https://grafana.openlibra.space/
+
+      sidecar:
+        dashboards:
+          enabled: false
+
+    prometheus:
+      ingress:
+        enabled: true
+        ingressClassName: public
+        annotations:
+          kubernetes.io/ingress.class: public
+          cert-manager.io/cluster-issuer: "letsencrypt-production"
+          # type of authentication
+          nginx.ingress.kubernetes.io/auth-type: basic
+          # name of the secret that contains the user/password definitions
+          nginx.ingress.kubernetes.io/auth-secret: prometheus-basic-auth
+        hosts:
+          - prometheus.openlibra.space
+        paths:
+          - /
+        tls:
+          - secretName: prometheus-general-tls
+            hosts:
+              - prometheus.openlibra.space
+      prometheusSpec:
+        scrapeInterval: 15s
+        evaluationInterval: 15s
+        retention: 90d
+        enableAdminAPI: true
+        #        resources:
+        #          requests:
+        #            cpu: 200m
+        #            memory: 200Mi
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: microk8s-hostpath
+              accessModes: [ "ReadWriteOnce" ]
+              resources:
+                requests:
+                  storage: 100Gi
+
+        # Select all config CRDs (ServiceMonitor, PodMonitor, Probe, PrometheusRule) from all namespaces
+        podMonitorSelectorNilUsesHelmValues: false
+        serviceMonitorSelectorNilUsesHelmValues: false
+        ruleSelectorNilUsesHelmValues: false
+        probeSelectorNilUsesHelmValues: false
+
+        additionalScrapeConfigs:
+
+          #          # 001: nourspace/778759699407044630
+          #          - job_name: E77DDB76C9AFCB3D5511E46CBC89023D
+          #            static_configs:
+          #              - targets: [ '85.215.101.117:9100', '85.215.101.117:9101' ]
+          #                labels: { ol_discord: 'nourspace', ol_discord_id: '778759699407044630', ol_node_type: validator }
+          #              - targets: [ '85.215.114.128:9100', '85.215.114.128:9101' ]
+          #                labels: { ol_discord: 'nourspace', ol_discord_id: '778759699407044630', ol_node_type: vfn }
+
+          # 002: 0D
+          - job_name: 46A7A744B5D33C47F6B20766F8088B10
+            static_configs:
+              - targets: [ '35.192.123.205:9100', '35.192.123.205:9101' ]
+                labels: { ol_discord: '0D', ol_discord_id: '606590852738973739', ol_node_type: validator }
+              - targets: [ '104.154.120.174:9100', '104.154.120.174:9101' ]
+                labels: { ol_discord: '0D', ol_discord_id: '606590852738973739', ol_node_type: vfn }
+              - targets: [ '35.184.98.21:9100', '35.184.98.21:9101' ]
+                labels: { ol_discord: '0D', ol_discord_id: '606590852738973739', ol_node_type: fullnode }
+
+          # 003: 0D
+          - job_name: ECAF65ADD1B785B0495E3099F4045EC0
+            static_configs:
+              - targets: [ '34.145.88.77:9100', '34.145.88.77:9101' ]
+                labels: { ol_discord: '0D', ol_discord_id: '606590852738973739', ol_node_type: validator, ol_ignore: 1 }
+
+          # 004: thenateway/690731283944570931
+          - job_name: E264023342B41ACCDBB61A190B6CB2A7
+            static_configs:
+              - targets: [ '65.109.30.55:9100', '65.109.30.55:9101' ]
+                labels: { ol_discord: 'thenateway', ol_discord_id: '690731283944570931', ol_node_type: validator }
+              - targets: [ '5.161.130.81:9100', '5.161.130.81:9101' ]
+                labels: { ol_discord: 'thenateway', ol_discord_id: '690731283944570931', ol_node_type: vfn }
+
+          # 005: Wade
+          - job_name: D1281DE242839FC939745996882C5FC2
+            static_configs:
+              - targets: [ '100.21.134.51:9100', '100.21.134.51:9101' ]
+                labels: { ol_discord: 'Wade', ol_discord_id: '651103232155713582', ol_node_type: validator }
+              - targets: [ '44.240.151.31:9100', '44.240.151.31:9101' ]
+                labels: { ol_discord: 'Wade', ol_discord_id: '651103232155713582', ol_node_type: vfn }
+
+          # 006: Saturn
+          - job_name: BA28F081DE02FC6CC3BF9879D6033911
+            static_configs:
+              - targets: [ '143.198.246.18:9100', '143.198.246.18:9101' ]
+                labels: { ol_discord: 'Saturn', ol_discord_id: '414875040773832705', ol_node_type: validator }
+
+          #          # 007: zmanian
+          #          - job_name: 252F0B551C80CD9E951D82C6F70792AE
+          #            static_configs:
+          #              - targets: [ '34.127.9.153:9100', '34.127.9.153:9101' ]
+          #                labels: { ol_discord: 'zmanian', ol_discord_id: '280426000171401218', ol_node_type: validator, ol_ignore: 1 }
+
+          #          # 008: zmanian
+          #          - job_name: D0D62AE27A4E84B559DA089A1B15A79F
+          #            static_configs:
+          #              - targets: [ '35.185.199.86:9100', '35.185.199.86:9101' ]
+          #                labels: { ol_discord: 'zmanian', ol_discord_id: '280426000171401218', ol_node_type: validator, ol_ignore: 1 }
+
+          #          # 009: zmanian
+          #          - job_name: 5ABEDEC612EA01B9F6F2EAAD7187BFEF
+          #            static_configs:
+          #              - targets: [ '34.127.72.205:9100', '34.127.72.205:9101' ]
+          #                labels: { ol_discord: 'zmanian', ol_discord_id: '280426000171401218', ol_node_type: validator, ol_ignore: 1 }
+
+          # 010: Adal
+          - job_name: D1C9CE9308B0BDC6DC2BA6A7B5DA8C2B
+            static_configs:
+              - targets: [ '35.203.118.177:9100', '35.203.118.177:9101' ]
+                labels: { ol_discord: 'Adal', ol_discord_id: '752531177922887691', ol_node_type: validator }
+
+          # 011: abed
+          - job_name: 56641E58ABA97FA6B7EA833F83444392
+            static_configs:
+              - targets: [ '82.165.250.66:9100', '82.165.250.66:9101' ]
+                labels: { ol_discord: 'abed', ol_discord_id: '316951571323813889', ol_node_type: validator }
+              - targets: [ '212.227.190.50:9100', '212.227.190.50:9101' ]
+                labels: { ol_discord: 'abed', ol_discord_id: '316951571323813889', ol_node_type: vfn }
+
+          # 012: Daniyal
+          - job_name: 4B08C148F5E80962BE1E5755F0D2ED29
+            static_configs:
+              - targets: [ '65.108.73.53:9100', '65.108.73.53:9101' ]
+                labels: { ol_discord: 'Daniyal', ol_discord_id: '491284720131375104', ol_node_type: validator }
+              # VFN (currently [02.05.2022] open to public but will change to strict VFN later)
+              - targets: [ '135.181.118.28:9100', '135.181.118.28:9101' ]
+                labels: { ol_discord: 'Daniyal', ol_discord_id: '491284720131375104', ol_node_type: vfn }
+
+          # 013: drawks
+          - job_name: 1C03E956DD7AFC612E4EFE240C23365D
+            static_configs:
+              - targets: [ '161.35.228.136:9100', '161.35.228.136:9101' ]
+                labels: { ol_discord: 'drawks', ol_discord_id: '222044646447120384', ol_node_type: validator }
+
+          # 014: sirouk
+          - job_name: 9A710919B1A1E67EDA335269C0085C91
+            static_configs:
+              - targets: [ '204.186.74.44:9100', '204.186.74.44:9101' ]
+                labels: { ol_discord: 'sirouk', ol_discord_id: '547966246486802432', ol_node_type: validator }
+
+          # 015: misko9
+          - job_name: 987BE6E871FAEEDFE255B4305B4C6D02
+            static_configs:
+              - targets: [ '73.181.115.53:9100', '73.181.115.53:9101' ]
+                labels: { ol_discord: 'misko9', ol_discord_id: '563541920224247833' ,ol_node_type: validator }
+
+          # 016: veeEmm/706378312708128830
+          - job_name: 987D7486A6DB70993EEAB79124BC6606
+            static_configs:
+              - targets: [ '3.18.120.115:9100', '3.18.120.115:9101' ]
+                labels: { ol_discord: 'veeEmm', ol_discord_id: '706378312708128830', ol_node_type: validator }
+
+          # 017: svanakin
+          - job_name: D96E89E270A5273D94BC8AB7953754F9
+            static_configs:
+              - targets: [ '65.108.108.82:9100', '65.108.108.82:9101' ]
+                labels: { ol_discord: 'svanakin', ol_discord_id: '624140826108362782', ol_node_type: validator }
+
+          # 018: Ashiiix
+          - job_name: 8186F4D8FDD09DFE02963B0B4C385105
+            static_configs:
+              - targets: [ '20.39.34.205:9100', '20.39.34.205:9101' ]
+                labels: { ol_discord: 'Ashiiix', ol_discord_id: '338588728572379137', ol_node_type: validator }
+
+          # 019: IO/679973424319168556
+          - job_name: 86EA91E266287D11011F5C0B3963D2EA
+            static_configs:
+              - targets: [ '136.175.9.29:9100', '136.175.9.29:9101' ]
+                labels: { ol_discord: 'IO', ol_discord_id: '679973424319168556', ol_node_type: validator }
+
+          # 020: designSAGΞ
+          - job_name: 3AD62C7BF62A8DCA766E74772192B8CC
+            static_configs:
+              - targets: [ '35.222.101.249:9100', '35.222.101.249:9101' ]
+                labels: { ol_discord: 'designSAGΞ', ol_discord_id: '796419642242891866', ol_node_type: validator }
+
+          # 021: nelaturuk/633119636522663956
+          - job_name: 304A03C0B4ACDFDCE54BFAF39D4E0448
+            static_configs:
+              - targets: [ '188.166.23.18:9100', '188.166.23.18:9101' ]
+                labels: { ol_discord: 'nelaturuk', ol_discord_id: '633119636522663956', ol_node_type: validator }
+
+          # 022: nelaturuk/633119636522663956
+          - job_name: D67F3FF22BD719EB5BE2DF6577C9B42D
+            static_configs:
+              - targets: [ '134.209.114.98:9100', '134.209.114.98:9101' ]
+                labels: { ol_discord: 'nelaturuk', ol_discord_id: '633119636522663956', ol_node_type: validator }
+
+          # 023: nelaturuk/633119636522663956
+          - job_name: 7E56B29CB23A49368BE593E5CFC9712E
+            static_configs:
+              - targets: [ '64.227.6.64:9100', '64.227.6.64:9101' ]
+                labels: { ol_discord: 'nelaturuk', ol_discord_id: '633119636522663956', ol_node_type: validator }
+
+          # 024: Jack Lin/672142168177246250
+          - job_name: B295DA228C6808199D92DC813975755C
+            static_configs:
+              - targets: [ '217.69.0.52:9100', '217.69.0.52:9101' ]
+                labels: { ol_discord: 'Jack Lin', ol_discord_id: '672142168177246250', ol_node_type: validator }
+
+          # 025: default/404325147567194112
+          - job_name: 0761BCA303F0BAAC640765D3DDF172BE
+            static_configs:
+              - targets: [ '34.250.128.226:9100', '34.250.128.226:9101' ]
+                labels: { ol_discord: 'default', ol_discord_id: '404325147567194112', ol_node_type: validator }
+
+          # 026: sm86
+          - job_name: 34E5ADDEC49DED4CC638DAD8CD992858
+            static_configs:
+              - targets: [ '128.199.149.59:9100', '128.199.149.59:9101' ]
+                labels: { ol_discord: 'sm86', ol_discord_id: '398064968999895041', ol_node_type: validator }
+
+          # f. Arno Jacobsen's | Shashank
+          # 027: sm86
+          - job_name: BDB8AD37341CEC0817FD8E2474E25031
+            static_configs:
+              - targets: [ '138.197.150.164:9100', '138.197.150.164:9101' ]
+                labels: { ol_discord: 'sm86', ol_discord_id: '398064968999895041', ol_node_type: validator }
+
+          # 028: mortonbits
+          - job_name: C0A1F4D49658CF2FE5402E10F496BB80
+            static_configs:
+              - targets: [ '154.53.35.183:9100', '154.53.35.183:9101' ]
+                labels: { ol_discord: 'mortonbits', ol_discord_id: '834120359174209557', ol_node_type: validator }
+              - targets: [ '154.12.239.62:9100', '154.12.239.62:9101' ]
+                labels: { ol_discord: 'mortonbits', ol_discord_id: '834120359174209557', ol_node_type: vfn }
+
+          # 029: Barmaley
+          - job_name: 6A9F0FA0B6BD687F4343D8880B40F697
+            static_configs:
+              - targets: [ '50.35.71.119:9100', '50.35.71.119:9101' ]
+                labels: { ol_discord: 'Barmaley', ol_discord_id: '443537935753674752', ol_node_type: validator }
+
+          # 030: Barmaley
+          - job_name: 4C95E7B998B4E66EF666FE12930A4D5C
+            static_configs:
+              - targets: [ '99.145.200.98:9100', '99.145.200.98:9101' ]
+                labels: { ol_discord: 'Barmaley', ol_discord_id: '443537935753674752', ol_node_type: validator }
+
+          # OD 2019 OL contributors
+          # 031: 0D
+          - job_name: 7EC16859C24200D8E074809D252AC740
+            static_configs:
+              - targets: [ '35.231.138.89:9100', '35.231.138.89:9101' ]
+                labels: { ol_discord: '0D', ol_discord_id: '606590852738973739', ol_node_type: validator, ol_ignore: 1 }
+
+          # 032: ricoflan
+          - job_name: B5B5BA58B8E9916FE449D1F989383834
+            static_configs:
+              - targets: [ '159.223.49.139:9100', '159.223.49.139:9101' ]
+                labels: { ol_discord: 'ricoflan', ol_discord_id: '890365466957201428', ol_node_type: validator, ol_ignore: 1 }
+
+          #          # 033: Ashiiix
+          #          - job_name: 8FBA55A8622D93E8E8BFBFB2C86460D1
+          #            static_configs:
+          #              - targets: [ '3.216.31.76:9100', '3.216.31.76:9101' ]
+          #                labels: { ol_discord: 'Ashiiix', ol_discord_id: '338588728572379137', ol_node_type: validator }
+
+          #          # CMTopDog
+          #          # 034: svanakin
+          #          - job_name: 351F3C360630F790DE10570C0A224B06
+          #            static_configs:
+          #              - targets: [ '65.108.195.43:9100', '65.108.195.43:9101' ]
+          #                labels: { ol_discord: 'svanakin', ol_discord_id: '624140826108362782', ol_node_type: validator }
+
+          # CMTopDog
+          # 035: svanakin
+          - job_name: 79D2A77B01E5CDE1A5FB123119424ACB
+            static_configs:
+              - targets: [ '65.108.143.43:9100', '65.108.143.43:9101' ]
+                labels: { ol_discord: 'svanakin', ol_discord_id: '624140826108362782', ol_node_type: validator }
+
+          # CMTopDog
+          # 036: svanakin
+          - job_name: 63BB637E57BF088B129BCF1BFD93EBF4
+            static_configs:
+              - targets: [ '65.108.122.162:9100', '65.108.122.162:9101' ]
+                labels: { ol_discord: 'svanakin', ol_discord_id: '624140826108362782', ol_node_type: validator }
+
+          # 037: gnudrew25/706378015449546762
+          - job_name: 012338B54BA4625ADCC313394D87819C
+            static_configs:
+              - targets: [ '63.229.234.74:9100', '63.229.234.74:9101' ]
+                labels: { ol_discord: 'gnudrew25', ol_discord_id: '706378015449546762', ol_node_type: validator }
+              - targets: [ '63.229.234.76:9100', '63.229.234.76:9101' ]
+                labels: { ol_discord: 'gnudrew25', ol_discord_id: '706378015449546762', ol_node_type: vfn }
+
+          # 038: gnudrew25/706378015449546762
+          - job_name: 012345062CE76E68F1AC6D5506527AA1
+            static_configs:
+              - targets: [ '63.229.234.75:9100', '63.229.234.75:9101' ]
+                labels: { ol_discord: 'gnudrew25', ol_discord_id: '706378015449546762', ol_node_type: validator }
+              - targets: [ '63.229.234.77:9100', '63.229.234.77:9101' ]
+                labels: { ol_discord: 'gnudrew25', ol_discord_id: '706378015449546762', ol_node_type: vfn }
+
+          # 039: jamesm/759983035990540330
+          - job_name: CCB020E30B1C014F45664761F0B740C7
+            static_configs:
+              - targets: [ '143.110.217.112:9100', '143.110.217.112:9101' ]
+                labels: { ol_discord: 'jamesm', ol_discord_id: '759983035990540330', ol_node_type: validator }
+
+          # 040: batraster/916109984847253525
+          - job_name: 70A016DF0643121BFC80EF1C87E4C189
+            static_configs:
+              - targets: [ '73.229.59.230:9100', '73.229.59.230:9101' ]
+                labels: { ol_discord: 'batraster', ol_discord_id: '916109984847253525', ol_node_type: validator }
+
+          # 041: AlexB/354395272811642882
+          - job_name: 756D518DB499A22C1DAD0E2EE353C21D
+            static_configs:
+              - targets: [ '54.241.68.58:9100', '54.241.68.58:9101' ]
+                labels: { ol_discord: 'AlexB', ol_discord_id: '354395272811642882', ol_node_type: validator }
+
+          # 042: AlexB/354395272811642882
+          - job_name: 048CCB33BF48A0F333023E0E8ECCE568
+            static_configs:
+              - targets: [ '54.177.106.39:9100', '54.177.106.39:9101' ]
+                labels: { ol_discord: 'AlexB', ol_discord_id: '354395272811642882', ol_node_type: validator }
+
+          # 043: AlexB/354395272811642882
+          - job_name: 5A8FC2F30445AD0F5F4DD0E7E8AE0271
+            static_configs:
+              - targets: [ '54.176.65.164:9100', '54.176.65.164:9101' ]
+                labels: { ol_discord: 'AlexB', ol_discord_id: '354395272811642882', ol_node_type: validator }
+
+          #          # 044: AlexB/354395272811642882
+          #          - job_name: C60AA211476FA7B451FB77EE9DF81594
+          #            static_configs:
+          #              - targets: [ '54.241.226.25:9100', '54.241.226.25:9101' ]
+          #                labels: { ol_discord: 'AlexB', ol_discord_id: '354395272811642882', ol_node_type: validator }
+
+          # 045: 0xslipk/724728702176329828
+          - job_name: AA7B724A51A8BD8E55208FEF969209B3
+            static_configs:
+              - targets: [ '138.197.59.9:9100', '138.197.59.9:9101' ]
+                labels: { ol_discord: '0xslipk', ol_discord_id: '724728702176329828', ol_node_type: validator }
+
+          # 046: nibbler/413822315344691201
+          - job_name: 34B5D5E56EC27D954AC5D40B24D11422
+            static_configs:
+              - targets: [ '104.197.186.76:9100', '104.197.186.76:9101' ]
+                labels: { ol_discord: 'nibbler', ol_discord_id: '413822315344691201', ol_node_type: validator }
+
+          # 047: bigbubabeast/366368948981334027
+          - job_name: 71E5BE86B41516743AC8594BC90EE2FC
+            static_configs:
+              - targets: [ '65.108.108.215:9100', '65.108.108.215:9101' ]
+                labels: { ol_discord: 'bigbubabeast', ol_discord_id: '366368948981334027', ol_node_type: validator }
+
+          # 048: Bethose/703506297177243700
+          - job_name: 754903132F75C0B1F5E5BE29FB0CA6CD
+            static_configs:
+              - targets: [ '51.81.109.168:9100', '51.81.109.168:9101' ]
+                labels: { ol_discord: 'Bethose', ol_discord_id: '703506297177243700', ol_node_type: validator }
+              - targets: [ '137.184.85.246:9100', '137.184.85.246:9101' ]
+                labels: { ol_discord: 'Bethose', ol_discord_id: '703506297177243700', ol_node_type: vfn }
+
+          # 049: 0olo0/958436208122425364
+          - job_name: 779FD01DFE608A4288B4B514D17DA48B
+            static_configs:
+              - targets: [ '65.21.94.229:9100', '65.21.94.229:9101' ]
+                labels: { ol_discord: '0olo0', ol_discord_id: '958436208122425364', ol_node_type: validator, ol_ignore: 1 }
+
+          # 050: technique/107275729577746432
+          - job_name: F26FA56D696B2E085DD10793D235DE9B
+            static_configs:
+              - targets: [ '137.184.244.87:9100', '137.184.244.87:9101' ]
+                labels: { ol_discord: 'technique', ol_discord_id: '107275729577746432', ol_node_type: validator }
+
+          # 051: IdleZone/739752140855181342
+          - job_name: C846B6A1F74CD459DE2B547E0D6ECE41
+            static_configs:
+              - targets: [ '66.94.124.31:9100', '66.94.124.31:9101' ]
+                labels: { ol_discord: 'IdleZone', ol_discord_id: '739752140855181342', ol_node_type: validator }
+              - targets: [ '66.94.124.56:9100', '66.94.124.56:9101' ]
+                labels: { ol_discord: 'IdleZone', ol_discord_id: '739752140855181342', ol_node_type: vfn }
+
+          # 052: pithecus
+          - job_name: 9909F6EDB2A0684ADECD7B448B989E4F
+            static_configs:
+              - targets: [ '116.202.102.10:9100', '116.202.102.10:9101' ]
+                labels: { ol_discord: 'pithecus', ol_discord_id: '823838136592498709', ol_node_type: validator }
+
+          # 053: East Agile
+          - job_name: 78233906CE0643D1852A7D4899A7666F
+            static_configs:
+              - targets: [ '3.69.19.127:9100', '3.69.19.127:9101' ]
+                labels: { ol_discord: 'East Agile', ol_discord_id: '935800162457100298', ol_node_type: validator }
+
+          # 054: andersph/936985341771010058
+          - job_name: F87F7E60A019F509EB6573018CD0D8B8
+            static_configs:
+              - targets: [ '66.94.105.123:9100', '66.94.105.123:9101' ]
+                labels: { ol_discord: 'andersph', ol_discord_id: '936985341771010058', ol_node_type: validator }
+
+          # 055: TheOneID
+          - job_name: 2023C65E5323FEB2671EB690D5649AE3
+            static_configs:
+              - targets: [ '65.109.25.102:9100', '65.109.25.102:9101' ]
+                labels: { ol_discord: 'TheOneID', ol_discord_id: '769118448214867999', ol_node_type: validator }
+              - targets: [ '65.108.192.81:9100', '65.108.192.81:9101' ]
+                labels: { ol_discord: 'TheOneID', ol_discord_id: '769118448214867999', ol_node_type: vfn }
+
+          # 056: nControl88
+          - job_name: 0D785EB2412263BEB0DBBB6468F35A1A
+            static_configs:
+              - targets: [ '65.109.30.14:9100', '65.109.30.14:9101' ]
+                labels: { ol_discord: 'nControl88', ol_discord_id: '963797190990495816', ol_node_type: validator }
+              - targets: [ '92.63.169.155:9100', '92.63.169.155:9101' ]
+                labels: { ol_discord: 'nControl88', ol_discord_id: '963797190990495816', ol_node_type: vfn }
+
+          # 057: Michael64
+          - job_name: 749FF1A8B711605E5421CFD00BD3385F
+            static_configs:
+              - targets: [ '65.109.54.233:9100', '65.109.54.233:9101' ]
+                labels: { ol_discord: 'Michael64', ol_discord_id: '822526126458929162', ol_node_type: validator }
+              - targets: [ '65.108.14.25:9100', '65.108.14.25:9101' ]
+                labels: { ol_discord: 'Michael4', ol_discord_id: '822526126458929162', ol_node_type: vfn }
+
+          # 058: kamp/422849637699813387
+          - job_name: 1E0F82ED044AD1B1E927F58DA129A630
+            static_configs:
+              - targets: [ '65.108.230.116:9100', '65.108.230.116:9101' ]
+                labels: { ol_discord: 'kamp', ol_discord_id: '422849637699813387', ol_node_type: validator }
+              - targets: [ '65.108.225.53:9100', '65.108.225.53:9101' ]
+                labels: { ol_discord: 'kamp', ol_discord_id: '422849637699813387', ol_node_type: vfn }
+
+          # 059: Texaseduc8r/1014464054678523935
+          - job_name: B1BAAA259104FBB80D38A8AC6F584ADA
+            static_configs:
+              - targets: [ '70.114.175.103:9100', '70.114.175.103:9101' ]
+                labels: { ol_discord: 'Texaseduc8r', ol_discord_id: '1014464054678523935', ol_node_type: validator }
+
+          # 060: nControl88/963797190990495816
+          - job_name: 79784B5981CC5407BA3BF9F7526F3F54
+            static_configs:
+              - targets: [ '65.109.21.230:9100', '65.109.21.230:9101' ]
+                labels: { ol_discord: 'nControl88', ol_discord_id: '963797190990495816', ol_node_type: validator }
+
+          # 061: MrMcCRYPTOFACE/880759240736792596
+          - job_name: 0A5D5B9384F0E825CD1EB8CA9459E012
+            static_configs:
+              - targets: [ '65.21.138.41:9100', '65.21.138.41:9101' ]
+                labels: { ol_discord: 'MrMcCRYPTOFACE', ol_discord_id: '880759240736792596', ol_node_type: validator }
+              - targets: [ '213.133.98.249:9100', '213.133.98.249:9101' ]
+                labels: { ol_discord: 'MrMcCRYPTOFACE', ol_discord_id: '880759240736792596', ol_node_type: vfn }
+
+          # 062: Nima/196701369313394692
+          - job_name: 6DA2B828F3018637379203940C639A95
+            static_configs:
+              - targets: [ '81.169.157.223:9100', '81.169.157.223:9101' ]
+                labels: { ol_discord: 'Nima', ol_discord_id: '196701369313394692', ol_node_type: validator }
+              - targets: [ '194.163.142.150:9100', '194.163.142.150:9101' ]
+                labels: { ol_discord: 'Nima', ol_discord_id: '196701369313394692', ol_node_type: vfn }
+
+          # 063: spork/543515494439845930
+          - job_name: D85C69AF1B7FAD9AC8E591AC6A172C11
+            static_configs:
+              - targets: [ '159.203.8.175:9100', '159.203.8.175:9101' ]
+                labels: { ol_discord: 'spork', ol_discord_id: '543515494439845930', ol_node_type: validator }
+
+          # 064: hemulin/383553815841865738
+          - job_name: 851A3BAF866951B36A3FE0DA92BA38FC
+            static_configs:
+              - targets: [ '65.109.155.71:9100', '65.109.155.71:9101' ]
+                labels: { ol_discord: 'hemulin', ol_discord_id: '383553815841865738', ol_node_type: validator }
+              - targets: [ '65.109.155.81:9100', '65.109.155.81:9101' ]
+                labels: { ol_discord: 'hemulin', ol_discord_id: '383553815841865738', ol_node_type: vfn }
+
+          # 065: Polo/643529176543920148
+          - job_name: 3E169C31B0DDFED4F464E1756A90DFB5
+            static_configs:
+              - targets: [ '5.9.112.146:9100', '5.9.112.146:9101' ]
+                labels: { ol_discord: 'Polo', ol_discord_id: '643529176543920148', ol_node_type: validator }
+
+          # 066: Alan Yoon/916477633729019916
+          - job_name: 32F24E0488A4E189D38FCCD1F2A94B53
+            static_configs:
+              - targets: [ '45.32.180.248:9100', '45.32.180.248:9101' ]
+                labels: { ol_discord: 'Alan Yoon', ol_discord_id: '916477633729019916', ol_node_type: validator }
+              - targets: [ '175.118.42.113:9100', '175.118.42.113:9101' ]
+                labels: { ol_discord: 'Alan Yoon', ol_discord_id: '916477633729019916', ol_node_type: vfn }
+
+          # 067: THEBEASTBLASTER/916477633729019916
+          - job_name: 3983317328EA613E8DE12725F560F683
+            static_configs:
+              - targets: [ '144.76.16.205:9100', '144.76.16.205:9101' ]
+                labels: { ol_discord: 'THEBEASTBLASTER', ol_discord_id: '822605267006390303', ol_node_type: validator }
+
+          # 068: jigabyte/801981348297572413
+          - job_name: 75E6C399717BC76D0C0006B011D38889
+            static_configs:
+              - targets: [ '142.132.154.118:9100', '142.132.154.118:9101' ]
+                labels: { ol_discord: 'jigabyte', ol_discord_id: '801981348297572413', ol_node_type: validator }
+
+          # 069: dmski1/833317735894351872
+          - job_name: B8BA6C084FA504ADD5F23AE51E41F23D
+            static_configs:
+              - targets: [ '172.104.211.8:9100', '172.104.211.8:9101' ]
+                labels: { ol_discord: 'dmski1', ol_discord_id: '833317735894351872', ol_node_type: validator }
+
+          # 070: Paulito/776520842070720514
+          - job_name: 2BFD96D8A674A360B733D16C65728D72
+            static_configs:
+              - targets: [ '65.108.14.32:9100', '65.108.14.32:9101' ]
+                labels: { ol_discord: 'Paulito', ol_discord_id: '776520842070720514', ol_node_type: validator }
+
+          # 071: BullyBull/750442713450676365
+          - job_name: 556BE5778BE23DDBA95957A157124B82
+            static_configs:
+              - targets: [ '142.132.201.184:9100', '142.132.201.184:9101' ]
+                labels: { ol_discord: 'BullyBull', ol_discord_id: '750442713450676365', ol_node_type: validator }
+
+          # 072: Mixolydian/524169506071904266
+          - job_name: 59852115F2D8F091769C03777D656D9C
+            static_configs:
+              - targets: [ '135.181.213.120:9100', '135.181.213.120:9101' ]
+                labels: { ol_discord: 'Mixolydian', ol_discord_id: '524169506071904266', ol_node_type: validator }
+
+          # 073: Optix/761492004856791060
+          - job_name: DB971BA7467A10E8FB9F9B660F09F50D
+            static_configs:
+              - targets: [ '65.109.95.240:9100', '65.109.95.240:9101' ]
+                labels: { ol_discord: 'Optix', ol_discord_id: '761492004856791060', ol_node_type: validator }
+
+          # 074: awolf/406802045560160256
+          - job_name: 05F0C6691A9F77C379F5EA2769FDEEAC
+            static_configs:
+              - targets: [ '85.10.198.174:9100', '85.10.198.174:9101' ]
+                labels: { ol_discord: 'awolf', ol_discord_id: '406802045560160256', ol_node_type: validator }
+
+          # 075: ｚｏ/528961604365320203
+          - job_name: C0FFEE1A3393516D27B72B28464EAA5F
+            static_configs:
+              - targets: [ '158.69.122.73:9100', '158.69.122.73:9101' ]
+                labels: { ol_discord: 'ｚｏ', ol_discord_id: '528961604365320203', ol_node_type: validator }
+
+          #          # 076: StolenPizza/883821357933158410
+          #          - job_name: 092F2D0B0E098A69D329C11671EAB24D
+          #            static_configs:
+          #              - targets: [ '165.232.115.222:9100', '165.232.115.222:9101' ]
+          #                labels: { ol_discord: 'StolenPizza', ol_discord_id: '883821357933158410', ol_node_type: validator }
+
+          # 077: Florin/851808786741198849
+          - job_name: 5B201B300DAA793DAC94DD799CD4E1EA
+            static_configs:
+              - targets: [ '65.108.206.215:9100', '65.108.206.215:9101' ]
+                labels: { ol_discord: 'Florin', ol_discord_id: '851808786741198849', ol_node_type: validator }
+
+          # 078: sadboiii/391397375392088077
+          - job_name: 599A107393062C98A584817BDA5B354B
+            static_configs:
+              - targets: [ '65.108.207.202:9100', '65.108.207.202:9101' ]
+                labels: { ol_discord: 'sadboiii', ol_discord_id: '391397375392088077', ol_node_type: validator }
+
+          # 079: BCMO/723511365100240898
+          - job_name: 311F36C5AAFDFAA265564284FDB124B4
+            static_configs:
+              - targets: [ '65.109.36.190:9100', '65.109.36.190:9101' ]
+                labels: { ol_discord: 'BCMO', ol_discord_id: '723511365100240898', ol_node_type: validator }
+
+          # 080: sudo/481572613047451669
+          - job_name: 44C7D1C88561BB3DF6B39A4096FC3F32
+            static_configs:
+              - targets: [ '45.63.50.55:9100', '45.63.50.55:9101' ]
+                labels: { ol_discord: 'sudo', ol_discord_id: '481572613047451669', ol_node_type: validator }
+
+          # 081: gmcc17/851152612078387251
+          - job_name: A35AE41A5F1701FCB67F4E4CAD59D259
+            static_configs:
+              - targets: [ '65.109.119.201:9100', '65.109.119.201:9101' ]
+                labels: { ol_discord: 'gmcc17', ol_discord_id: '851152612078387251', ol_node_type: validator }
+
+          # 082: judasdaygame/1058504363515072603 (hemulin)
+          - job_name: 16B3DA73E53D17BFEB6B542F1AC33444
+            static_configs:
+              - targets: [ '95.217.194.110:9100', '95.217.194.110:9101' ]
+                labels: { ol_discord: 'judasdaygame', ol_discord_id: '383553815841865738', ol_node_type: validator }
+              - targets: [ '95.217.194.123:9100', '95.217.194.123:9101' ]
+                labels: { ol_discord: 'judasdaygame', ol_discord_id: '383553815841865738', ol_node_type: vfn }
+
+          # 083: BillyBlockbrain/1100502442560471081
+          - job_name: C31BF1F6F46F8E74503763FB9A563221
+            static_configs:
+              - targets: [ '136.243.22.246:9100', '136.243.22.246:9101' ]
+                labels: { ol_discord: 'BillyBlockbrain', ol_discord_id: '1100502442560471081', ol_node_type: validator }

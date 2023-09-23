@@ -1,0 +1,211 @@
+{
+    "id": 5,
+    "uid": "UdSNzFn4k",
+    "orgID": 1,
+    "folderUID": "kV6tBQRVz",
+    "ruleGroup": "validator-votes",
+    "title": "Votes and rounds",
+    "condition": "E",
+    "data": [
+        {
+            "refId": "A",
+            "queryType": "",
+            "relativeTimeRange": {
+                "from": 3600,
+                "to": 0
+            },
+            "datasourceUid": "prometheus",
+            "model": {
+                "editorMode": "code",
+                "expr": "diem_committed_votes_in_window{ol_discord_id=~\".+\", ol_ignore=\"\"}",
+                "hide": false,
+                "interval": "",
+                "intervalMs": 15000,
+                "legendFormat": "{{job}} @{{ol_discord}}",
+                "maxDataPoints": 43200,
+                "range": true,
+                "refId": "A"
+            }
+        },
+        {
+            "refId": "B",
+            "queryType": "",
+            "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+            },
+            "datasourceUid": "-100",
+            "model": {
+                "conditions": [
+                    {
+                        "evaluator": {
+                            "params": [
+                                3
+                            ],
+                            "type": "gt"
+                        },
+                        "operator": {
+                            "type": "and"
+                        },
+                        "query": {
+                            "params": [
+                                "A"
+                            ]
+                        },
+                        "reducer": {
+                            "params": [],
+                            "type": "last"
+                        },
+                        "type": "query"
+                    }
+                ],
+                "datasource": {
+                    "type": "__expr__",
+                    "uid": "-100"
+                },
+                "expression": "A",
+                "hide": false,
+                "intervalMs": 1000,
+                "maxDataPoints": 43200,
+                "reducer": "last",
+                "refId": "B",
+                "settings": {
+                    "mode": "replaceNN",
+                    "replaceWithValue": 0
+                },
+                "type": "reduce"
+            }
+        },
+        {
+            "refId": "C",
+            "queryType": "",
+            "relativeTimeRange": {
+                "from": 3600,
+                "to": 0
+            },
+            "datasourceUid": "prometheus",
+            "model": {
+                "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                },
+                "editorMode": "code",
+                "expr": "rate(diem_consensus_current_round{ol_discord_id=~\".+\", ol_ignore=\"\"}[1m])*60",
+                "hide": false,
+                "intervalMs": 1000,
+                "legendFormat": "{{job}} @{{ol_discord}}",
+                "maxDataPoints": 43200,
+                "range": true,
+                "refId": "C"
+            }
+        },
+        {
+            "refId": "D",
+            "queryType": "",
+            "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+            },
+            "datasourceUid": "-100",
+            "model": {
+                "conditions": [
+                    {
+                        "evaluator": {
+                            "params": [
+                                0,
+                                0
+                            ],
+                            "type": "gt"
+                        },
+                        "operator": {
+                            "type": "and"
+                        },
+                        "query": {
+                            "params": [
+                                "C"
+                            ]
+                        },
+                        "reducer": {
+                            "params": [],
+                            "type": "avg"
+                        },
+                        "type": "query"
+                    }
+                ],
+                "datasource": {
+                    "name": "Expression",
+                    "type": "__expr__",
+                    "uid": "__expr__"
+                },
+                "expression": "C",
+                "hide": false,
+                "intervalMs": 1000,
+                "maxDataPoints": 43200,
+                "reducer": "last",
+                "refId": "D",
+                "settings": {
+                    "mode": "replaceNN",
+                    "replaceWithValue": 0
+                },
+                "type": "reduce"
+            }
+        },
+        {
+            "refId": "E",
+            "queryType": "",
+            "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+            },
+            "datasourceUid": "-100",
+            "model": {
+                "conditions": [
+                    {
+                        "evaluator": {
+                            "params": [
+                                0,
+                                0
+                            ],
+                            "type": "gt"
+                        },
+                        "operator": {
+                            "type": "and"
+                        },
+                        "query": {
+                            "params": []
+                        },
+                        "reducer": {
+                            "params": [],
+                            "type": "avg"
+                        },
+                        "type": "query"
+                    }
+                ],
+                "datasource": {
+                    "type": "__expr__",
+                    "uid": "__expr__"
+                },
+                "expression": "$B < 1 || $D < 1",
+                "hide": false,
+                "intervalMs": 1000,
+                "maxDataPoints": 43200,
+                "refId": "E",
+                "type": "math"
+            }
+        }
+    ],
+    "updated": "2023-05-04T12:50:29Z",
+    "noDataState": "NoData",
+    "execErrState": "Alerting",
+    "for": "15m",
+    "annotations": {
+        "__dashboardUid__": "0l-node",
+        "__panelId__": "32",
+        "rounds": "{{ printf \"%.1f\" $values.D.Value }}/m",
+        "summary": "Committed votes in a window or new rounds per minute are below the threshold.",
+        "votes": "{{ printf \"%.1f\" $values.B.Value }}/w"
+    },
+    "labels": {
+        "discord": "ok"
+    }
+}

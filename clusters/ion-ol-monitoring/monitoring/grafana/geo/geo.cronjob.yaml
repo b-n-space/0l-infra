@@ -1,0 +1,33 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: geo-cron
+spec:
+  schedule: "0 */12 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: geo-cron
+              image: nourspace/0l-tools:v0.1
+              imagePullPolicy: Always
+              command:
+                - python
+                - main.py
+              env:
+                - name: DB_DIR
+                  value: "/var/lib/grafana/geo-db"
+              volumeMounts:
+                - mountPath: /code
+                  name: python
+                - name: storage
+                  mountPath: /var/lib/grafana
+          restartPolicy: OnFailure
+          volumes:
+            - name: python
+              configMap:
+                name: geo-cron-main-python
+            - name: storage
+              persistentVolumeClaim:
+                claimName: kube-prometheus-stack-grafana

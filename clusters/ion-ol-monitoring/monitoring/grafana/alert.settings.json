@@ -1,0 +1,77 @@
+{
+  "template_files": {
+    "discord.default": "{{ define \"__discord_alert_list\" }}\n{{ range . }}[Votes: `{{ .Annotations.votes }}`, Rounds: `{{ .Annotations.rounds }}`] <= `{{ slice .Labels.job 0 8 }}` ({{ slice .Labels.instance 0 8 }}...) <@{{ .Labels.ol_discord_id }}>\n{{ end }}{{ end }}\n\n{{ define \"discord.default.message\" }}\n**{{ .CommonLabels.alertname }}**\n> {{ .CommonAnnotations.summary }}\n{{ if gt (len .Alerts.Firing) 0 }}:warning: Firing{{ template \"__discord_alert_list\" .Alerts.Firing }}{{ end }}\n{{ if gt (len .Alerts.Resolved) 0 }}:white_check_mark: Resolved{{ template \"__discord_alert_list\" .Alerts.Resolved }}{{ end }}\n{{ end }}"
+  },
+  "template_file_provenances": {},
+  "alertmanager_config": {
+    "route": {
+      "receiver": "discord-0l-validator-alerts",
+      "group_by": [
+        "alertname"
+      ],
+      "group_interval": "30m"
+    },
+    "templates": [
+      "discord.default"
+    ],
+    "receivers": [
+      {
+        "name": "Test channel email",
+        "grafana_managed_receiver_configs": [
+          {
+            "uid": "mGEl-QRVk",
+            "name": "Test channel email",
+            "type": "email",
+            "disableResolveMessage": false,
+            "settings": {
+              "addresses": "info@nour.space",
+              "autoResolve": true,
+              "httpMethod": "POST",
+              "severity": "critical",
+              "singleEmail": false,
+              "uploadImage": false
+            },
+            "secureFields": {}
+          }
+        ]
+      },
+      {
+        "name": "autogen-contact-point-default"
+      },
+      {
+        "name": "discord-0l-validator-health-test",
+        "grafana_managed_receiver_configs": [
+          {
+            "uid": "lefsm57Vk",
+            "name": "discord-0l-validator-health-test",
+            "type": "discord",
+            "disableResolveMessage": false,
+            "settings": {
+              "message": "{{ template \"discord.default.message\" .}}",
+              "url": "https://discord.com/api/webhooks/1021152390512136364/HzhsggDzaq1y_8zzWqbYbRV4AuQ0KXPMmHJV3RLC3M5EDFCK4dZMZJYjUGBxO2XnE7v4",
+              "use_discord_username": false
+            },
+            "secureFields": {}
+          }
+        ]
+      },
+      {
+        "name": "discord-0l-validator-alerts",
+        "grafana_managed_receiver_configs": [
+          {
+            "uid": "w8U0Z574k",
+            "name": "discord-0l-validator-alerts",
+            "type": "discord",
+            "disableResolveMessage": true,
+            "settings": {
+              "message": "{{ template \"discord.default.message\" .}}",
+              "url": "https://discord.com/api/webhooks/1011310689576558728/zAW8w9U5apOHPEH4eALIAQaPRwlhfcruE3YTeygGdVgWCzB6MDyb8s-4iMkk_jHsiP6s",
+              "use_discord_username": true
+            },
+            "secureFields": {}
+          }
+        ]
+      }
+    ]
+  }
+}

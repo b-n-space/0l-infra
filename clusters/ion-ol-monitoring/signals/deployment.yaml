@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: signals
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: signals
+  template:
+    metadata:
+      labels:
+        app: signals
+    spec:
+      containers:
+      - name: signals
+        image: nourspace/0l-signals:latest
+        ports:
+        - containerPort: 8000
